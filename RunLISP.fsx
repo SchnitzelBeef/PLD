@@ -80,7 +80,7 @@ let rec eval s localEnv =
          // quote returns its argument unevaluated
   | Cons (Symbol "\\", rules) -> Closure (s, localEnv)
          // a statically scoped function builds a closure
-         // of the function and the local environment at its definition
+         // of the function and the local environment at its definitioneval
   | Cons (Symbol "lambda", rules) -> s
         // multi-way conditional
   | Cons (Symbol "if", es) ->
@@ -256,11 +256,31 @@ and tryRules rs args localEnv =
                           + showSexpIndent args 29 29))
   | _ ->  raise (Lerror ("Malformed rules " + showSexpIndent rs 16 16))
 
+// ** ADDED **
+// Creates an "inorder tree walk" of the arguments
+// Only used for pattern matching (? p e) since it breaks normal function application,
+// but is needed to fix argument "inling" specifically when evaluating a symbol for some reason
+
+and inorderTreeWalk exp =
+  match (exp) with
+  | (Cons (s, Nil)) -> s
+  | (Cons (Symbol s, exp2)) ->
+       (Cons (Symbol s, Cons (inorderTreeWalk exp2, Nil))) 
+  | (Cons (Num n, exp2)) ->
+       (Cons (Num n, Cons (inorderTreeWalk exp2, Nil))) 
+  | (Cons (exp1, exp2)) ->
+       (Cons (inorderTreeWalk exp1, Cons (inorderTreeWalk exp2, Nil))) 
+  | _ -> raise (Lerror ("inorderTreeWalk failed"))
+
 // match pattern to argument list
 // returns Some environment if matches, None if not
 
 and matchPattern p v =
   match (p, v) with
+  | (Cons (Symbol "?", Cons (Symbol q, Cons (Cons (exp, args), Nil))), w) ->    // ** ADDED ** (? p e) pattern
+      let res = eval (Cons (exp, (inorderTreeWalk (evalList args [(q, w)])))) []
+      if res <> Nil then Some [(q, res)]
+      else None
   | (Nil, Nil) -> Some []
   | (Num m, Num n) when m = n -> Some []
   | (Symbol x, w) ->
@@ -275,6 +295,9 @@ and matchPattern p v =
        match (matchPattern p1 v1, matchPattern p2 v2) with
        | (Some env1, Some env2) -> combine env1 env2 
        | _ -> None
+  // | (Cons (Symbol "?", Cons (Cons (p1, p2), exp)), Cons (v1, v2)) ->  // ** ADDED: (? p e) pattern for lists of values of p (assigned 'p1' and 'p2')
+  //     if eval exp (update [] (eval [] q) w) <> Nil then [(q, w)]
+  //     else None
   | _ -> None
 
 // combine environments and check if repeated variables have same value

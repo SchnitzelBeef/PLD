@@ -1,3 +1,6 @@
+; Compile LISP interpreter with:
+; source compile.sh
+
 ; Can be run with:
 ; cat Assignment1.le | mono lisp.exe
 
@@ -33,10 +36,20 @@
     ((T vs)) (reduce T vs)
     )
 
-; A few test calls:
-(split '(a b c))
+; A few test calls for task 1 (a-d):
+(split '(1 2 3))
 (split '(a b c d))
 (substitute '((\ x (x y)) y) 'y 'z '(a b c d))
 (reduce-redex '((\ x (x y)) y) '(p q))
 (reduce '((\ x (x y)) y) '(p q))
 (reduce '(x ((\ y (y x)) ((\ z z) x))) '(a b c d))
+
+; Task 2 implementatiion and test:
+(fun fibonacci
+    (? n (>= n 2)) (+ (fibonacci (- n 1)) (fibonacci (- n 2)))
+    (n) n)
+
+(fibonacci 0)  ; 0th  fibonacci number
+(fibonacci 1)  ; 1st  fibonacci number
+(fibonacci 5)  ; 5th  fibonacci number
+(fibonacci 16) ; 16th fibonacci number
