@@ -1,0 +1,42 @@
+; Can be run with:
+; cat Assignment1.le | mono lisp.exe
+
+(load listfunctions)
+(fun split 
+    (t)             (split t () ())
+    (()      a b)   (list (reverse a) (reverse b))
+    ((h . t) a b)   (split t b (:: h a))
+    )
+
+(fun substitute
+        ; Rule #4 of sub:
+    (('\ y t3) x S vs)          (list \ (#L vs) (substitute t3 (:: y x) (:: (#L vs) S) (#R vs)))
+        ; Rule #3 of sub:
+    ((t3 t4) x S vs)            (let (fvs . svs) (split vs) (list (substitute t3 x S fvs) (substitute t4 x S (#L svs))))
+        ; Rule(s) #1 of sub:
+    (x x S vs)                  S
+    (x (x . xn) (S . Sn) vs)    S
+        ; Rule #2 of sub:
+    (y x S vs)                 (if (symbol? x) y (substitute y (#R x) (#R S) vs))
+    )
+
+(fun reduce-redex ((('\ x T) S) vs) (substitute T x S vs))
+
+(fun reduce 
+        ; Rule #3 of reduce:
+    ((('\ x t1) t2) vs) (reduce-redex (list (list \ x t1) t2) vs)
+        ; Rule #2 of reduce:
+    ((t1 t2) vs) (let (fvs . svs) (split vs) (list (reduce t1 fvs) (reduce t2 (#L svs))))
+        ; Rule #1 of reduce:
+    (var vs) var
+        ; Oddball:
+    ((T vs)) (reduce T vs)
+    )
+
+; A few test calls:
+(split '(a b c))
+(split '(a b c d))
+(substitute '((\ x (x y)) y) 'y 'z '(a b c d))
+(reduce-redex '((\ x (x y)) y) '(p q))
+(reduce '((\ x (x y)) y) '(p q))
+(reduce '(x ((\ y (y x)) ((\ z z) x))) '(a b c d))
