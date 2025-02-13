@@ -80,7 +80,7 @@ let rec eval s localEnv =
          // quote returns its argument unevaluated
   | Cons (Symbol "\\", rules) -> Closure (s, localEnv)
          // a statically scoped function builds a closure
-         // of the function and the local environment at its definition
+         // of the function and the local environment at its definitioneval
   | Cons (Symbol "lambda", rules) -> s
         // multi-way conditional
   | Cons (Symbol "if", es) ->
@@ -256,11 +256,37 @@ and tryRules rs args localEnv =
                           + showSexpIndent args 29 29))
   | _ ->  raise (Lerror ("Malformed rules " + showSexpIndent rs 16 16))
 
+
+// ** ADDED **
+// Binds all conditional variables (used in (? p e) expressions where p is multiple variables)
+
+and bindConditionalMatchVariables p v : (string * Sexp) list =
+  match (p, v) with
+  | (Cons (Symbol p1, Nil), Cons (Num v1, Nil)) -> 
+      [(p1, Num v1)]
+  | (Cons (Symbol p1, p2), Cons (Num v1, v2)) -> 
+      update (bindConditionalMatchVariables p2 v2) p1 (Num v1)
+  | _ -> raise (Lerror ("bindConditionMatchVariables failed :("))
+  // ^^ Amazing error description
+
 // match pattern to argument list
 // returns Some environment if matches, None if not
 
+// Cons (Symbol ">=", Cons (Symbol "n",Cons (Num 2,Nil)))
+// Cons (Symbol "<",  Cons (Num 3 ,Cons (Num 5,Nil)))
+
 and matchPattern p v =
   match (p, v) with
+  | (Cons (Symbol "?", Cons (Symbol q, Cons (exp, Nil))), Cons (w, Nil)) ->    // ** ADDED ** (? p e) pattern
+      let local_env = [(q, w)]
+      let res = eval exp local_env
+      if res <> Nil then Some [(q, w)]
+      else None
+  | (Cons (Symbol "?", Cons (exp1, Cons (exp2, Nil))), w) ->    // ** ADDED ** (? p e) pattern for multiple variables
+      let local_env = bindConditionalMatchVariables exp1 w 
+      let res = eval exp2 local_env
+      if res <> Nil then Some local_env
+      else None
   | (Nil, Nil) -> Some []
   | (Num m, Num n) when m = n -> Some []
   | (Symbol x, w) ->
